@@ -68,7 +68,29 @@ func MarkdownAction(c *gin.Context) {
 		return
 	}
 
-	mdText := arg["markdownText"].(string)
+	mdTextRaw, ok := arg["markdownText"]
+	if !ok || nil == mdTextRaw {
+		mdTextRaw, ok = arg["markdown"]
+	}
+	if !ok || nil == mdTextRaw {
+		result.Code = util.CodeErr
+		result.Msg = "markdown text is required"
+
+		return
+	}
+
+	mdText, ok := mdTextRaw.(string)
+	if !ok {
+		if bytes, ok := mdTextRaw.([]byte); ok {
+			mdText = string(bytes)
+		} else {
+			result.Code = util.CodeErr
+			result.Msg = "markdown text must be a string"
+
+			return
+		}
+	}
+
 	mdResult := util.Markdown(mdText)
 	result.Data = mdResult.ContentHTML
 }
