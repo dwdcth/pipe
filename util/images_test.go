@@ -11,20 +11,19 @@
 package util
 
 import (
-	"strings"
-	"testing"
+    "testing"
 )
 
 func TestRandImage(t *testing.T) {
-	url := RandImage()
-	if !strings.Contains(url, CommunityFileURL) {
-		t.Errorf(url)
-	}
+    url := RandImage()
+    if url != "" {
+        t.Errorf("expected empty string, got: %s", url)
+    }
 }
 
 func TestRandImages(t *testing.T) {
-	urls := RandImages(4)
-	if 4 != len(urls) {
-		t.Errorf("expected is [%d], actual is [%d]", 4, len(urls))
-	}
+    urls := RandImages(4)
+    if 0 != len(urls) {
+        t.Errorf("expected is [%d], actual is [%d]", 0, len(urls))
+    }
 }

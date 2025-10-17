@@ -6,8 +6,6 @@
         <div class="error__description">Page not found</div>
         <div class="fn__right">
           <a href="/">{{ $t('index', $store.state.locale)}}</a>
-          |
-          <a href="https://ld246.com">{{ $t('hacpai', $store.state.locale)}}</a>
         </div>
       </div>
     </div>
@@ -15,10 +13,6 @@
       <h2 class="card__title">50X</h2>
       <div class="card__body fn__clear">
         <div class="error__description">{{error.statusCode}}</div>
-        <div class="fn__right">
-          <a href="https://github.com/88250/pipe/issues/new">{{ $t('reportIssue', $store.state.locale)}}</a> |
-          <a href="https://ld246.com">{{ $t('hacpai', $store.state.locale)}}</a>
-        </div>
       </div>
     </div>
   </div>
