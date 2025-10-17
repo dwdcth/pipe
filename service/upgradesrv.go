@@ -11,248 +11,248 @@
 package service
 
 import (
-	"strconv"
-	"sync"
+    "strconv"
+    "sync"
 
-	"github.com/88250/pipe/model"
-	"github.com/88250/pipe/util"
+    "github.com/88250/pipe/model"
+    "github.com/88250/pipe/util"
 )
 
 // Upgrade service.
 var Upgrade = &upgradeService{
-	mutex: &sync.Mutex{},
+    mutex: &sync.Mutex{},
 }
 
 type upgradeService struct {
-	mutex *sync.Mutex
+    mutex *sync.Mutex
 }
 
 func (srv *upgradeService) Perform() {
-	if !Init.Inited() {
-		return
-	}
-	sysVerSetting := Setting.GetSetting(model.SettingCategorySystem, model.SettingNameSystemVer, 1)
-	if nil == sysVerSetting {
-		logger.Fatalf("system state is error, please contact developer: https://github.com/88250/pipe/issues/new")
-	}
+    if !Init.Inited() {
+        return
+    }
+    sysVerSetting := Setting.GetSetting(model.SettingCategorySystem, model.SettingNameSystemVer, 1)
+    if nil == sysVerSetting {
+        logger.Fatalf("system state is error, please contact developer")
+    }
 
-	currentVer := sysVerSetting.Value
-	if util.Version == currentVer {
-		return
-	}
+    currentVer := sysVerSetting.Value
+    if util.Version == currentVer {
+        return
+    }
 
-	switch currentVer {
-	case "1.8.6":
-		perform186_187()
-		fallthrough
-	case "1.8.7":
-		perform187_188()
-		fallthrough
-	case "1.8.8":
-		perform188_189()
-		fallthrough
-	case "1.8.9":
-		perform189_190()
-		fallthrough
-	case "1.9.0":
-		perform190_191()
-		fallthrough
-	case "1.9.1":
-		perform191_200()
-		fallthrough
-	case "2.0.0":
-		perform200_210()
-	default:
-		logger.Fatalf("please upgrade to v1.8.7 first")
-	}
+    switch currentVer {
+    case "1.8.6":
+        perform186_187()
+        fallthrough
+    case "1.8.7":
+        perform187_188()
+        fallthrough
+    case "1.8.8":
+        perform188_189()
+        fallthrough
+    case "1.8.9":
+        perform189_190()
+        fallthrough
+    case "1.9.0":
+        perform190_191()
+        fallthrough
+    case "1.9.1":
+        perform191_200()
+        fallthrough
+    case "2.0.0":
+        perform200_210()
+    default:
+        logger.Fatalf("please upgrade to v1.8.7 first")
+    }
 }
 
 func perform200_210() {
-	fromVer := "2.0.0"
-	logger.Infof("upgrading from version [" + fromVer + "] to version [" + util.Version + "]....")
+    fromVer := "2.0.0"
+    logger.Infof("upgrading from version [" + fromVer + "] to version [" + util.Version + "]....")
 
-	var verSettings []model.Setting
-	if err := db.Model(&model.Setting{}).Where("name = ?", model.SettingNameSystemVer).Find(&verSettings).Error; nil != err {
-		logger.Fatalf("load settings failed: %s", err)
-	}
+    var verSettings []model.Setting
+    if err := db.Model(&model.Setting{}).Where("name = ?", model.SettingNameSystemVer).Find(&verSettings).Error; nil != err {
+        logger.Fatalf("load settings failed: %s", err)
+    }
 
-	tx := db.Begin()
-	for _, setting := range verSettings {
-		setting.Value = util.Version
-		if err := tx.Save(setting).Error; nil != err {
-			tx.Rollback()
+    tx := db.Begin()
+    for _, setting := range verSettings {
+        setting.Value = util.Version
+        if err := tx.Save(setting).Error; nil != err {
+            tx.Rollback()
 
-			logger.Fatalf("update setting [%+v] failed: %s", setting, err.Error())
-		}
-	}
-	tx.Commit()
+            logger.Fatalf("update setting [%+v] failed: %s", setting, err.Error())
+        }
+    }
+    tx.Commit()
 
-	logger.Infof("upgraded from version [" + fromVer + "] to version [" + util.Version + "] successfully")
+    logger.Infof("upgraded from version [" + fromVer + "] to version [" + util.Version + "] successfully")
 }
 
 func perform191_200() {
-	fromVer := "1.9.1"
-	logger.Infof("upgrading from version [" + fromVer + "] to version [" + util.Version + "]....")
+    fromVer := "1.9.1"
+    logger.Infof("upgrading from version [" + fromVer + "] to version [" + util.Version + "]....")
 
-	var verSettings []model.Setting
-	if err := db.Model(&model.Setting{}).Where("name = ?", model.SettingNameSystemVer).Find(&verSettings).Error; nil != err {
-		logger.Fatalf("load settings failed: %s", err)
-	}
+    var verSettings []model.Setting
+    if err := db.Model(&model.Setting{}).Where("name = ?", model.SettingNameSystemVer).Find(&verSettings).Error; nil != err {
+        logger.Fatalf("load settings failed: %s", err)
+    }
 
-	tx := db.Begin()
-	for _, setting := range verSettings {
-		setting.Value = util.Version
-		if err := tx.Save(setting).Error; nil != err {
-			tx.Rollback()
+    tx := db.Begin()
+    for _, setting := range verSettings {
+        setting.Value = util.Version
+        if err := tx.Save(setting).Error; nil != err {
+            tx.Rollback()
 
-			logger.Fatalf("update setting [%+v] failed: %s", setting, err.Error())
-		}
-	}
-	tx.Commit()
+            logger.Fatalf("update setting [%+v] failed: %s", setting, err.Error())
+        }
+    }
+    tx.Commit()
 
-	logger.Infof("upgraded from version [" + fromVer + "] to version [" + util.Version + "] successfully")
+    logger.Infof("upgraded from version [" + fromVer + "] to version [" + util.Version + "] successfully")
 }
 
 func perform190_191() {
-	fromVer := "1.9.0"
-	logger.Infof("upgrading from version [" + fromVer + "] to version [" + util.Version + "]....")
+    fromVer := "1.9.0"
+    logger.Infof("upgrading from version [" + fromVer + "] to version [" + util.Version + "]....")
 
-	var verSettings []model.Setting
-	if err := db.Model(&model.Setting{}).Where("name = ?", model.SettingNameSystemVer).Find(&verSettings).Error; nil != err {
-		logger.Fatalf("load settings failed: %s", err)
-	}
+    var verSettings []model.Setting
+    if err := db.Model(&model.Setting{}).Where("name = ?", model.SettingNameSystemVer).Find(&verSettings).Error; nil != err {
+        logger.Fatalf("load settings failed: %s", err)
+    }
 
-	tx := db.Begin()
-	for _, setting := range verSettings {
-		setting.Value = util.Version
-		if err := tx.Save(setting).Error; nil != err {
-			tx.Rollback()
+    tx := db.Begin()
+    for _, setting := range verSettings {
+        setting.Value = util.Version
+        if err := tx.Save(setting).Error; nil != err {
+            tx.Rollback()
 
-			logger.Fatalf("update setting [%+v] failed: %s", setting, err.Error())
-		}
-	}
-	tx.Commit()
+            logger.Fatalf("update setting [%+v] failed: %s", setting, err.Error())
+        }
+    }
+    tx.Commit()
 
-	logger.Infof("upgraded from version [" + fromVer + "] to version [" + util.Version + "] successfully")
+    logger.Infof("upgraded from version [" + fromVer + "] to version [" + util.Version + "] successfully")
 }
 
 func perform189_190() {
-	fromVer := "1.8.9"
-	logger.Infof("upgrading from version [" + fromVer + "] to version [" + util.Version + "]....")
+    fromVer := "1.8.9"
+    logger.Infof("upgrading from version [" + fromVer + "] to version [" + util.Version + "]....")
 
-	var verSettings []model.Setting
-	if err := db.Model(&model.Setting{}).Where("name = ?", model.SettingNameSystemVer).Find(&verSettings).Error; nil != err {
-		logger.Fatalf("load settings failed: %s", err)
-	}
+    var verSettings []model.Setting
+    if err := db.Model(&model.Setting{}).Where("name = ?", model.SettingNameSystemVer).Find(&verSettings).Error; nil != err {
+        logger.Fatalf("load settings failed: %s", err)
+    }
 
-	tx := db.Begin()
-	for _, setting := range verSettings {
-		setting.Value = util.Version
-		if err := tx.Save(setting).Error; nil != err {
-			tx.Rollback()
+    tx := db.Begin()
+    for _, setting := range verSettings {
+        setting.Value = util.Version
+        if err := tx.Save(setting).Error; nil != err {
+            tx.Rollback()
 
-			logger.Fatalf("update setting [%+v] failed: %s", setting, err.Error())
-		}
-	}
-	tx.Commit()
+            logger.Fatalf("update setting [%+v] failed: %s", setting, err.Error())
+        }
+    }
+    tx.Commit()
 
-	logger.Infof("upgraded from version [" + fromVer + "] to version [" + util.Version + "] successfully")
+    logger.Infof("upgraded from version [" + fromVer + "] to version [" + util.Version + "] successfully")
 }
 
 func perform188_189() {
-	logger.Infof("upgrading from version [1.8.8] to version [1.8.9]....")
+    logger.Infof("upgrading from version [1.8.8] to version [1.8.9]....")
 
-	var verSettings []model.Setting
-	if err := db.Model(&model.Setting{}).Where("name = ?", model.SettingNameSystemVer).Find(&verSettings).Error; nil != err {
-		logger.Fatalf("load settings failed: %s", err)
-	}
+    var verSettings []model.Setting
+    if err := db.Model(&model.Setting{}).Where("name = ?", model.SettingNameSystemVer).Find(&verSettings).Error; nil != err {
+        logger.Fatalf("load settings failed: %s", err)
+    }
 
-	tx := db.Begin()
-	for _, setting := range verSettings {
-		setting.Value = util.Version
-		if err := tx.Save(setting).Error; nil != err {
-			tx.Rollback()
+    tx := db.Begin()
+    for _, setting := range verSettings {
+        setting.Value = util.Version
+        if err := tx.Save(setting).Error; nil != err {
+            tx.Rollback()
 
-			logger.Fatalf("update setting [%+v] failed: %s", setting, err.Error())
-		}
-	}
-	tx.Commit()
+            logger.Fatalf("update setting [%+v] failed: %s", setting, err.Error())
+        }
+    }
+    tx.Commit()
 
-	logger.Infof("upgraded from version [1.8.8] to version [1.8.9] successfully")
+    logger.Infof("upgraded from version [1.8.8] to version [1.8.9] successfully")
 }
 
 func perform187_188() {
-	logger.Infof("upgrading from version [1.8.7] to version [1.8.8]....")
+    logger.Infof("upgrading from version [1.8.7] to version [1.8.8]....")
 
-	var verSettings []model.Setting
-	if err := db.Model(&model.Setting{}).Where("name = ?", model.SettingNameSystemVer).Find(&verSettings).Error; nil != err {
-		logger.Fatalf("load settings failed: %s", err)
-	}
+    var verSettings []model.Setting
+    if err := db.Model(&model.Setting{}).Where("name = ?", model.SettingNameSystemVer).Find(&verSettings).Error; nil != err {
+        logger.Fatalf("load settings failed: %s", err)
+    }
 
-	tx := db.Begin()
-	for _, setting := range verSettings {
-		setting.Value = util.Version
-		if err := tx.Save(setting).Error; nil != err {
-			tx.Rollback()
+    tx := db.Begin()
+    for _, setting := range verSettings {
+        setting.Value = util.Version
+        if err := tx.Save(setting).Error; nil != err {
+            tx.Rollback()
 
-			logger.Fatalf("update setting [%+v] failed: %s", setting, err.Error())
-		}
-	}
+            logger.Fatalf("update setting [%+v] failed: %s", setting, err.Error())
+        }
+    }
 
-	rows, err := tx.Model(&model.Setting{}).Select(" blog_id ").Group(" blog_id ").Rows()
-	if nil != err {
-		tx.Rollback()
+    rows, err := tx.Model(&model.Setting{}).Select(" blog_id ").Group(" blog_id ").Rows()
+    if nil != err {
+        tx.Rollback()
 
-		logger.Fatalf("update settings failed: %s", err.Error())
-	}
+        logger.Fatalf("update settings failed: %s", err.Error())
+    }
 
-	blogIDs := []uint64{}
-	for rows.Next() {
-		var blogID uint64
-		err := rows.Scan(&blogID)
-		if nil != err {
-			tx.Rollback()
+    blogIDs := []uint64{}
+    for rows.Next() {
+        var blogID uint64
+        err := rows.Scan(&blogID)
+        if nil != err {
+            tx.Rollback()
 
-			logger.Fatalf("update settings failed: %s", err.Error())
-		}
-		blogIDs = append(blogIDs, blogID)
-	}
-	rows.Close()
+            logger.Fatalf("update settings failed: %s", err.Error())
+        }
+        blogIDs = append(blogIDs, blogID)
+    }
+    rows.Close()
 
-	for _, blogID := range blogIDs {
-		if err := tx.Create(&model.Setting{
-			Category: model.SettingCategoryPreference,
-			Name:     model.SettingNamePreferenceRecommendArticleListSize,
-			Value:    strconv.Itoa(model.SettingPreferenceRecommendArticleListSizeDefault),
-			BlogID:   blogID}).Error; nil != err {
-			tx.Rollback()
+    for _, blogID := range blogIDs {
+        if err := tx.Create(&model.Setting{
+            Category: model.SettingCategoryPreference,
+            Name:     model.SettingNamePreferenceRecommendArticleListSize,
+            Value:    strconv.Itoa(model.SettingPreferenceRecommendArticleListSizeDefault),
+            BlogID:   blogID}).Error; nil != err {
+            tx.Rollback()
 
-			logger.Fatalf("update settings failed: %s", err.Error())
-		}
-	}
-	tx.Commit()
+            logger.Fatalf("update settings failed: %s", err.Error())
+        }
+    }
+    tx.Commit()
 
-	logger.Infof("upgraded from version [1.8.7] to version [1.8.8] successfully")
+    logger.Infof("upgraded from version [1.8.7] to version [1.8.8] successfully")
 }
 
 func perform186_187() {
-	logger.Infof("upgrading from version [1.8.6] to version [1.8.7]....")
+    logger.Infof("upgrading from version [1.8.6] to version [1.8.7]....")
 
-	var verSettings []model.Setting
-	if err := db.Model(&model.Setting{}).Where("name = ?", model.SettingNameSystemVer).Find(&verSettings).Error; nil != err {
-		logger.Fatalf("load settings failed: %s", err)
-	}
+    var verSettings []model.Setting
+    if err := db.Model(&model.Setting{}).Where("name = ?", model.SettingNameSystemVer).Find(&verSettings).Error; nil != err {
+        logger.Fatalf("load settings failed: %s", err)
+    }
 
-	tx := db.Begin()
-	for _, setting := range verSettings {
-		setting.Value = util.Version
-		if err := tx.Save(setting).Error; nil != err {
-			tx.Rollback()
+    tx := db.Begin()
+    for _, setting := range verSettings {
+        setting.Value = util.Version
+        if err := tx.Save(setting).Error; nil != err {
+            tx.Rollback()
 
-			logger.Fatalf("update setting [%+v] failed: %s", setting, err.Error())
-		}
-	}
-	tx.Commit()
+            logger.Fatalf("update setting [%+v] failed: %s", setting, err.Error())
+        }
+    }
+    tx.Commit()
 
-	logger.Infof("upgraded from version [1.8.6] to version [1.8.7] successfully")
+    logger.Infof("upgraded from version [1.8.6] to version [1.8.7] successfully")
 }

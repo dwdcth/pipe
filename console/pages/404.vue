@@ -6,8 +6,6 @@
         <div class="error__description">Page not found</div>
         <div class="fn__right">
           <nuxt-link to="/">{{ $t('index', $store.state.locale)}}</nuxt-link>
-          |
-          <a href="https://ld246.com">{{ $t('hacpai', $store.state.locale)}}</a>
         </div>
       </div>
     </div>

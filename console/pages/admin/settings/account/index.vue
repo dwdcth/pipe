@@ -19,14 +19,6 @@
         @keyup.meta.13="accountUpdate"
       ></v-text-field>
 
-      <div class="fn__clear">
-        <a
-          class="fn__right"
-          href="https://ld246.com/settings/b3"
-          target="_blank">
-          {{ $t('check', $store.state.locale) }}/{{ $t('setting', $store.state.locale) }} B3log Key
-        </a>
-      </div>
       <div class="alert alert--danger" v-show="error">
         <v-icon>danger</v-icon>
         <span>{{ errorMsg }}</span>

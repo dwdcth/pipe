@@ -12,21 +12,19 @@
 package console
 
 import (
-	"crypto/tls"
-	"net/http"
-	"os"
-	"strconv"
-	"strings"
-	"time"
+    "net/http"
+    "os"
+    "strconv"
+    "strings"
+    "time"
 
-	"github.com/88250/gulu"
-	"github.com/88250/pipe/model"
-	"github.com/88250/pipe/service"
-	"github.com/88250/pipe/util"
-	"github.com/araddon/dateparse"
-	"github.com/fatih/structs"
-	"github.com/gin-gonic/gin"
-	"github.com/parnurzeal/gorequest"
+    "github.com/88250/gulu"
+    "github.com/88250/pipe/model"
+    "github.com/88250/pipe/service"
+    "github.com/88250/pipe/util"
+    "github.com/araddon/dateparse"
+    "github.com/fatih/structs"
+    "github.com/gin-gonic/gin"
 )
 
 // Logger
@@ -34,390 +32,341 @@ var logger = gulu.Log.NewLogger(os.Stdout)
 
 // PushArticle2RhyAction pushes an article to community.
 func PushArticle2RhyAction(c *gin.Context) {
-	result := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, result)
+    result := gulu.Ret.NewResult()
+    defer c.JSON(http.StatusOK, result)
 
-	idArg := c.Param("id")
-	id, err := strconv.ParseUint(idArg, 10, 64)
-	if nil != err {
-		result.Code = util.CodeErr
+    idArg := c.Param("id")
+    id, err := strconv.ParseUint(idArg, 10, 64)
+    if nil != err {
+        result.Code = util.CodeErr
 
-		return
-	}
+        return
+    }
 
-	article := service.Article.ConsoleGetArticle(uint64(id))
-	if nil == article {
-		result.Code = util.CodeErr
+    article := service.Article.ConsoleGetArticle(uint64(id))
+    if nil == article {
+        result.Code = util.CodeErr
 
-		return
-	}
+        return
+    }
 
-	service.Article.ConsolePushArticle(article)
+    service.Article.ConsolePushArticle(article)
 }
 
 // MarkdownAction handles markdown text to HTML.
 func MarkdownAction(c *gin.Context) {
-	result := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, result)
+    result := gulu.Ret.NewResult()
+    defer c.JSON(http.StatusOK, result)
 
-	arg := map[string]interface{}{}
-	if err := c.BindJSON(&arg); nil != err {
-		result.Code = util.CodeErr
-		result.Msg = "parses markdown request failed"
+    arg := map[string]interface{}{}
+    if err := c.BindJSON(&arg); nil != err {
+        result.Code = util.CodeErr
+        result.Msg = "parses markdown request failed"
 
-		return
-	}
+        return
+    }
 
-	mdTextRaw, ok := arg["markdownText"]
-	if !ok || nil == mdTextRaw {
-		mdTextRaw, ok = arg["markdown"]
-	}
-	if !ok || nil == mdTextRaw {
-		result.Code = util.CodeErr
-		result.Msg = "markdown text is required"
+    mdTextRaw, ok := arg["markdownText"]
+    if !ok || nil == mdTextRaw {
+        mdTextRaw, ok = arg["markdown"]
+    }
+    if !ok || nil == mdTextRaw {
+        result.Code = util.CodeErr
+        result.Msg = "markdown text is required"
 
-		return
-	}
+        return
+    }
 
-	mdText, ok := mdTextRaw.(string)
-	if !ok {
-		if bytes, ok := mdTextRaw.([]byte); ok {
-			mdText = string(bytes)
-		} else {
-			result.Code = util.CodeErr
-			result.Msg = "markdown text must be a string"
+    mdText, ok := mdTextRaw.(string)
+    if !ok {
+        if bytes, ok := mdTextRaw.([]byte); ok {
+            mdText = string(bytes)
+        } else {
+            result.Code = util.CodeErr
+            result.Msg = "markdown text must be a string"
 
-			return
-		}
-	}
+            return
+        }
+    }
 
-	mdResult := util.Markdown(mdText)
-	result.Data = mdResult.ContentHTML
+    mdResult := util.Markdown(mdText)
+    result.Data = mdResult.ContentHTML
 }
 
 var uploadTokenCheckTime, uploadTokenTime int64
-var uploadToken, uploadURL = "", "https://ld246.com/upload/client"
+var uploadToken, uploadURL = "", ""
 
 // UploadTokenAction gets a upload token.
 func UploadTokenAction(c *gin.Context) {
-	result := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, result)
+    result := gulu.Ret.NewResult()
+    defer c.JSON(http.StatusOK, result)
 
-	session := util.GetSession(c)
-	if "" == session.UB3Key {
-		result.Code = util.CodeErr
-
-		return
-	}
-
-	data := map[string]interface{}{}
-	result.Data = &data
-	now := time.Now().Unix()
-	if 3600 >= now-uploadTokenTime {
-		data["uploadToken"] = uploadToken
-		data["uploadURL"] = uploadURL
-
-		return
-	}
-
-	if 15 >= now-uploadTokenCheckTime {
-		data["uploadToken"] = uploadToken
-		data["uploadURL"] = uploadURL
-
-		return
-	}
-
-	requestJSON := map[string]interface{}{
-		"userName":  session.UName,
-		"userB3Key": session.UB3Key,
-	}
-
-	requestResult := gulu.Ret.NewResult()
-	_, _, errs := gorequest.New().TLSClientConfig(&tls.Config{InsecureSkipVerify: true}).
-		Post(util.CommunityURL+"/apis/upload/token").
-		SendStruct(requestJSON).Set("user-agent", util.UserAgent).Timeout(10 * time.Second).EndStruct(requestResult)
-	uploadTokenCheckTime = now
-	if nil != errs {
-		result.Code = util.CodeErr
-		logger.Errorf("get upload token failed: %s", errs)
-
-		return
-	}
-	if util.CodeOk != requestResult.Code {
-		result.Code = util.CodeErr
-		result.Msg = requestResult.Msg
-		logger.Errorf(requestResult.Msg)
-
-		return
-	}
-
-	resultData := requestResult.Data.(map[string]interface{})
-	uploadToken = resultData["uploadToken"].(string)
-	uploadURL = resultData["uploadURL"].(string)
-	uploadTokenTime = now
-	result.Data = requestResult.Data
+    data := map[string]interface{}{}
+    result.Data = &data
+    data["uploadToken"] = ""
+    data["uploadURL"] = ""
 }
 
 // AddArticleAction adds a new article.
 func AddArticleAction(c *gin.Context) {
-	result := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, result)
+    result := gulu.Ret.NewResult()
+    defer c.JSON(http.StatusOK, result)
 
-	arg := map[string]interface{}{}
-	if err := c.BindJSON(&arg); nil != err {
-		result.Code = util.CodeErr
-		result.Msg = "parses add article request failed"
+    arg := map[string]interface{}{}
+    if err := c.BindJSON(&arg); nil != err {
+        result.Code = util.CodeErr
+        result.Msg = "parses add article request failed"
 
-		return
-	}
+        return
+    }
 
-	createdAt, err := dateparse.ParseAny(arg["time"].(string))
-	if nil != err {
-		if "" != arg["time"].(string) {
-			result.Code = util.CodeErr
-			result.Msg = "parses article create time failed"
+    createdAt, err := dateparse.ParseAny(arg["time"].(string))
+    if nil != err {
+        if "" != arg["time"].(string) {
+            result.Code = util.CodeErr
+            result.Msg = "parses article create time failed"
 
-			return
-		}
+            return
+        }
 
-		createdAt = time.Now()
-	}
+        createdAt = time.Now()
+    }
 
-	session := util.GetSession(c)
+    session := util.GetSession(c)
 
-	article := &model.Article{
-		Title:       arg["title"].(string),
-		Abstract:    arg["abstract"].(string),
-		Content:     arg["content"].(string),
-		Path:        arg["path"].(string),
-		Tags:        arg["tags"].(string),
-		Commentable: arg["commentable"].(bool),
-		Topped:      arg["topped"].(bool),
-		IP:          util.GetRemoteAddr(c),
-		BlogID:      session.BID,
-		AuthorID:    session.UID,
-	}
-	article.CreatedAt = createdAt
+    article := &model.Article{
+        Title:       arg["title"].(string),
+        Abstract:    arg["abstract"].(string),
+        Content:     arg["content"].(string),
+        Path:        arg["path"].(string),
+        Tags:        arg["tags"].(string),
+        Commentable: arg["commentable"].(bool),
+        Topped:      arg["topped"].(bool),
+        IP:          util.GetRemoteAddr(c),
+        BlogID:      session.BID,
+        AuthorID:    session.UID,
+    }
+    article.CreatedAt = createdAt
 
-	if !arg["syncToCommunity"].(bool) {
-		article.PushedAt = article.CreatedAt
-	}
+    if !arg["syncToCommunity"].(bool) {
+        article.PushedAt = article.CreatedAt
+    }
 
-	if err := service.Article.AddArticle(article); nil != err {
-		result.Code = util.CodeErr
-		result.Msg = err.Error()
-	}
+    if err := service.Article.AddArticle(article); nil != err {
+        result.Code = util.CodeErr
+        result.Msg = err.Error()
+    }
 }
 
 // GetArticleAction gets an article.
 func GetArticleAction(c *gin.Context) {
-	result := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, result)
+    result := gulu.Ret.NewResult()
+    defer c.JSON(http.StatusOK, result)
 
-	idArg := c.Param("id")
-	id, err := strconv.ParseUint(idArg, 10, 64)
-	if nil != err {
-		result.Code = util.CodeErr
+    idArg := c.Param("id")
+    id, err := strconv.ParseUint(idArg, 10, 64)
+    if nil != err {
+        result.Code = util.CodeErr
 
-		return
-	}
+        return
+    }
 
-	article := service.Article.ConsoleGetArticle(uint64(id))
-	if nil == article {
-		result.Code = util.CodeErr
+    article := service.Article.ConsoleGetArticle(uint64(id))
+    if nil == article {
+        result.Code = util.CodeErr
 
-		return
-	}
+        return
+    }
 
-	data := structs.Map(article)
-	data["time"] = article.CreatedAt.Format("2006-01-02 15:04:05")
+    data := structs.Map(article)
+    data["time"] = article.CreatedAt.Format("2006-01-02 15:04:05")
 
-	result.Data = data
+    result.Data = data
 }
 
 // GetArticlesAction gets articles.
 func GetArticlesAction(c *gin.Context) {
-	result := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, result)
+    result := gulu.Ret.NewResult()
+    defer c.JSON(http.StatusOK, result)
 
-	session := util.GetSession(c)
-	articleModels, pagination := service.Article.ConsoleGetArticles(c.Query("key"), util.GetPage(c), session.BID)
-	blogURLSetting := service.Setting.GetSetting(model.SettingCategoryBasic, model.SettingNameBasicBlogURL, session.BID)
+    session := util.GetSession(c)
+    articleModels, pagination := service.Article.ConsoleGetArticles(c.Query("key"), util.GetPage(c), session.BID)
+    blogURLSetting := service.Setting.GetSetting(model.SettingCategoryBasic, model.SettingNameBasicBlogURL, session.BID)
 
-	var articles []*ConsoleArticle
-	for _, articleModel := range articleModels {
-		var consoleTags []*ConsoleTag
-		tagStrs := strings.Split(articleModel.Tags, ",")
-		for _, tagStr := range tagStrs {
-			consoleTag := &ConsoleTag{
-				Title: tagStr,
-				URL:   blogURLSetting.Value + util.PathTags + "/" + tagStr,
-			}
-			consoleTags = append(consoleTags, consoleTag)
-		}
+    var articles []*ConsoleArticle
+    for _, articleModel := range articleModels {
+        var consoleTags []*ConsoleTag
+        tagStrs := strings.Split(articleModel.Tags, ",")
+        for _, tagStr := range tagStrs {
+            consoleTag := &ConsoleTag{
+                Title: tagStr,
+                URL:   blogURLSetting.Value + util.PathTags + "/" + tagStr,
+            }
+            consoleTags = append(consoleTags, consoleTag)
+        }
 
-		authorModel := service.User.GetUser(articleModel.AuthorID)
-		author := &ConsoleAuthor{
-			Name:      authorModel.Name,
-			URL:       blogURLSetting.Value + util.PathAuthors + "/" + authorModel.Name,
-			AvatarURL: authorModel.AvatarURL,
-		}
+        authorModel := service.User.GetUser(articleModel.AuthorID)
+        author := &ConsoleAuthor{
+            Name:      authorModel.Name,
+            URL:       blogURLSetting.Value + util.PathAuthors + "/" + authorModel.Name,
+            AvatarURL: authorModel.AvatarURL,
+        }
 
-		article := &ConsoleArticle{
-			ID:           articleModel.ID,
-			Author:       author,
-			CreatedAt:    articleModel.CreatedAt.Format("2006-01-02"),
-			Title:        articleModel.Title,
-			Tags:         consoleTags,
-			URL:          blogURLSetting.Value + articleModel.Path,
-			Topped:       articleModel.Topped,
-			ViewCount:    articleModel.ViewCount,
-			CommentCount: articleModel.CommentCount,
-		}
+        article := &ConsoleArticle{
+            ID:           articleModel.ID,
+            Author:       author,
+            CreatedAt:    articleModel.CreatedAt.Format("2006-01-02"),
+            Title:        articleModel.Title,
+            Tags:         consoleTags,
+            URL:          blogURLSetting.Value + articleModel.Path,
+            Topped:       articleModel.Topped,
+            ViewCount:    articleModel.ViewCount,
+            CommentCount: articleModel.CommentCount,
+        }
 
-		articles = append(articles, article)
-	}
+        articles = append(articles, article)
+    }
 
-	data := map[string]interface{}{}
-	data["articles"] = articles
-	data["pagination"] = pagination
-	result.Data = data
+    data := map[string]interface{}{}
+    data["articles"] = articles
+    data["pagination"] = pagination
+    result.Data = data
 }
 
 // RemoveArticleAction removes an article.
 func RemoveArticleAction(c *gin.Context) {
-	result := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, result)
+    result := gulu.Ret.NewResult()
+    defer c.JSON(http.StatusOK, result)
 
-	idArg := c.Param("id")
-	id, err := strconv.ParseUint(idArg, 10, 64)
-	if nil != err {
-		result.Code = util.CodeErr
-		result.Msg = err.Error()
+    idArg := c.Param("id")
+    id, err := strconv.ParseUint(idArg, 10, 64)
+    if nil != err {
+        result.Code = util.CodeErr
+        result.Msg = err.Error()
 
-		return
-	}
+        return
+    }
 
-	session := util.GetSession(c)
-	blogID := session.BID
+    session := util.GetSession(c)
+    blogID := session.BID
 
-	if err := service.Article.RemoveArticle(id, blogID); nil != err {
-		result.Code = util.CodeErr
-		result.Msg = err.Error()
-	}
+    if err := service.Article.RemoveArticle(id, blogID); nil != err {
+        result.Code = util.CodeErr
+        result.Msg = err.Error()
+    }
 }
 
 // RemoveArticlesAction removes articles.
 func RemoveArticlesAction(c *gin.Context) {
-	result := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, result)
+    result := gulu.Ret.NewResult()
+    defer c.JSON(http.StatusOK, result)
 
-	arg := map[string]interface{}{}
-	if err := c.BindJSON(&arg); nil != err {
-		result.Code = util.CodeErr
-		result.Msg = "parses batch remove articles request failed"
+    arg := map[string]interface{}{}
+    if err := c.BindJSON(&arg); nil != err {
+        result.Code = util.CodeErr
+        result.Msg = "parses batch remove articles request failed"
 
-		return
-	}
+        return
+    }
 
-	session := util.GetSession(c)
-	blogID := session.BID
+    session := util.GetSession(c)
+    blogID := session.BID
 
-	ids := arg["ids"].([]interface{})
-	for _, id := range ids {
-		if err := service.Article.RemoveArticle(uint64(id.(float64)), blogID); nil != err {
-			logger.Errorf("remove article failed: " + err.Error())
-		}
-	}
+    ids := arg["ids"].([]interface{})
+    for _, id := range ids {
+        if err := service.Article.RemoveArticle(uint64(id.(float64)), blogID); nil != err {
+            logger.Errorf("remove article failed: " + err.Error())
+        }
+    }
 }
 
 // UpdateArticleAction updates an article.
 func UpdateArticleAction(c *gin.Context) {
-	result := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, result)
+    result := gulu.Ret.NewResult()
+    defer c.JSON(http.StatusOK, result)
 
-	idArg := c.Param("id")
-	id, err := strconv.ParseUint(idArg, 10, 64)
-	if nil != err {
-		result.Code = util.CodeErr
-		result.Msg = err.Error()
+    idArg := c.Param("id")
+    id, err := strconv.ParseUint(idArg, 10, 64)
+    if nil != err {
+        result.Code = util.CodeErr
+        result.Msg = err.Error()
 
-		return
-	}
+        return
+    }
 
-	arg := map[string]interface{}{}
-	if err := c.BindJSON(&arg); nil != err {
-		result.Code = util.CodeErr
-		result.Msg = "parses update article request failed"
+    arg := map[string]interface{}{}
+    if err := c.BindJSON(&arg); nil != err {
+        result.Code = util.CodeErr
+        result.Msg = "parses update article request failed"
 
-		return
-	}
+        return
+    }
 
-	createdAt, err := dateparse.ParseAny(arg["time"].(string))
-	if nil != err {
-		result.Code = util.CodeErr
-		result.Msg = "parses article create time failed"
+    createdAt, err := dateparse.ParseAny(arg["time"].(string))
+    if nil != err {
+        result.Code = util.CodeErr
+        result.Msg = "parses article create time failed"
 
-		return
-	}
+        return
+    }
 
-	session := util.GetSession(c)
+    session := util.GetSession(c)
 
-	article := &model.Article{
-		Model:       model.Model{ID: id, CreatedAt: createdAt},
-		Title:       arg["title"].(string),
-		Abstract:    arg["abstract"].(string),
-		Content:     arg["content"].(string),
-		Path:        arg["path"].(string),
-		Tags:        arg["tags"].(string),
-		Commentable: arg["commentable"].(bool),
-		Topped:      arg["topped"].(bool),
-		IP:          util.GetRemoteAddr(c),
-		BlogID:      session.BID,
-		AuthorID:    session.UID,
-	}
+    article := &model.Article{
+        Model:       model.Model{ID: id, CreatedAt: createdAt},
+        Title:       arg["title"].(string),
+        Abstract:    arg["abstract"].(string),
+        Content:     arg["content"].(string),
+        Path:        arg["path"].(string),
+        Tags:        arg["tags"].(string),
+        Commentable: arg["commentable"].(bool),
+        Topped:      arg["topped"].(bool),
+        IP:          util.GetRemoteAddr(c),
+        BlogID:      session.BID,
+        AuthorID:    session.UID,
+    }
 
-	oldArticle := service.Article.ConsoleGetArticle(id)
-	if nil == oldArticle {
-		result.Code = util.CodeErr
-		result.Msg = err.Error()
+    oldArticle := service.Article.ConsoleGetArticle(id)
+    if nil == oldArticle {
+        result.Code = util.CodeErr
+        result.Msg = err.Error()
 
-		return
-	}
+        return
+    }
 
-	if !arg["syncToCommunity"].(bool) {
-		article.PushedAt = oldArticle.PushedAt
-	}
+    if !arg["syncToCommunity"].(bool) {
+        article.PushedAt = oldArticle.PushedAt
+    }
 
-	if err := service.Article.UpdateArticle(article); nil != err {
-		result.Code = util.CodeErr
-		result.Msg = err.Error()
-	}
+    if err := service.Article.UpdateArticle(article); nil != err {
+        result.Code = util.CodeErr
+        result.Msg = err.Error()
+    }
 }
 
 // GetArticleThumbsAction gets article thumbnails.
 func GetArticleThumbsAction(c *gin.Context) {
-	result := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, result)
+    result := gulu.Ret.NewResult()
+    defer c.JSON(http.StatusOK, result)
 
-	n, _ := strconv.Atoi(c.Query("n"))
-	urls := util.RandImages(n)
+    n, _ := strconv.Atoi(c.Query("n"))
+    urls := util.RandImages(n)
 
-	// original: 1920*1080
+    // original: 1920*1080
 
-	w, _ := strconv.Atoi(c.Query("w"))
-	if w < 1 {
-		w = 768
-	}
-	h, _ := strconv.Atoi(c.Query("h"))
-	if h < 1 {
-		h = 432
-	}
+    w, _ := strconv.Atoi(c.Query("w"))
+    if w < 1 {
+        w = 768
+    }
+    h, _ := strconv.Atoi(c.Query("h"))
+    if h < 1 {
+        h = 432
+    }
 
-	var styledURLs []string
-	for _, url := range urls {
-		styledURLs = append(styledURLs, util.ImageSize(url, w, h))
-	}
+    var styledURLs []string
+    for _, url := range urls {
+        styledURLs = append(styledURLs, util.ImageSize(url, w, h))
+    }
 
-	result.Data = styledURLs
+    result.Data = styledURLs
 }
